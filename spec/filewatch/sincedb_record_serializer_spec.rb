@@ -9,30 +9,46 @@ module FileWatch
     let(:io) { StringIO.new }
     let(:db) { Hash.new }
 
-    subject { described_class.new(Settings.days_to_seconds(14)) }
+    subject { SincedbRecordSerializer.new(Settings.days_to_seconds(14)) }
 
     context "deserialize from IO" do
       it 'reads V1 records' do
-        io.write("5391299 1 4 12\n")
-        subject.deserialize(io) do |inode_struct, sincedb_value|
-          expect(inode_struct.inode).to eq("5391299")
-          expect(inode_struct.maj).to eq(1)
-          expect(inode_struct.min).to eq(4)
-          expect(sincedb_value.position).to eq(12)
-        end
+        io.write("5391297 1 4 12\n")
+        io.rewind
+        inode_struct, sincedb_value = nil
+        subject.deserialize(io) { |res| inode_struct, sincedb_value = res }
+        expect(inode_struct.inode).to eq("5391297")
+        expect(inode_struct.maj).to eq(1)
+        expect(inode_struct.min).to eq(4)
+        expect(sincedb_value.position).to eq(12)
       end
 
       it 'reads V2 records from an IO object' do
         now = Time.now.to_f
-        io.write("5391299 1 4 12 #{now} /a/path/to/1.log\n")
-        subject.deserialize(io) do |inode_struct, sincedb_value|
-          expect(inode_struct.inode).to eq("5391299")
-          expect(inode_struct.maj).to eq(1)
-          expect(inode_struct.min).to eq(4)
-          expect(sincedb_value.position).to eq(12)
-          expect(sincedb_value.last_changed_at).to eq(now)
-          expect(sincedb_value.path_in_sincedb).to eq("/a/path/to/1.log")
-        end
+        io.write("5391298 1 4 12 #{now} /a/path/to/1.log\n")
+        io.rewind
+        inode_struct, sincedb_value = nil
+        subject.deserialize(io) { |res| inode_struct, sincedb_value = res }
+        expect(inode_struct.inode).to eq("5391298")
+        expect(inode_struct.maj).to eq(1)
+        expect(inode_struct.min).to eq(4)
+        expect(sincedb_value.position).to eq(12)
+        expect(sincedb_value.last_changed_at).to eq(now)
+        expect(sincedb_value.path_in_sincedb).to eq("/a/path/to/1.log")
+      end
+
+      it 'properly handles spaces in a filename' do
+        now = Time.now.to_f
+        io.write("53912987 1 4 12 #{now} /a/path/to/log log.log\n")
+        io.rewind
+        inode_struct, sincedb_value = nil
+        subject.deserialize(io) { |res| inode_struct, sincedb_value = res }
+        expect(inode_struct.inode).to eq("53912987")
+        expect(inode_struct.maj).to eq(1)
+        expect(inode_struct.min).to eq(4)
+        expect(sincedb_value.position).to eq(12)
+        expect(sincedb_value.last_changed_at).to eq(now)
+        expect(sincedb_value.path_in_sincedb).to eq("/a/path/to/log log.log")
       end
     end
 

@@ -39,6 +39,10 @@ bundle install
 bundle install
 ```
 
+```bash
+gradle build
+```
+
 - Run tests
 
 ```sh
